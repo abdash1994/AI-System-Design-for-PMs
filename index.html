@@ -1,0 +1,1159 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="color-scheme" content="dark light" />
+<title>AI System Design for Product Managers</title>
+<meta name="description" content="A research-backed essay on how AI system design diverges from traditional system design — and the three things AI PMs must own." />
+<style>
+  /* ---------- Reset & base ---------- */
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Arial,sans-serif;
+    font-feature-settings:"ss01","ss02","cv11";
+    line-height:1.6;
+    background:var(--bg);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    overflow-x:hidden;
+    transition:background .6s ease,color .4s ease;
+  }
+  ::selection{background:var(--accent-glow);color:var(--text-strong)}
+
+  /* ---------- Tokens — DARK (default) ---------- */
+  :root,
+  [data-theme="dark"]{
+    --bg:#06070a;
+    --bg-2:#0c0f15;
+    --bg-grad-1:#1a1230;
+    --bg-grad-2:#0a1f2e;
+    --bg-grad-3:#11051f;
+    --surface:rgba(255,255,255,0.04);
+    --surface-strong:rgba(255,255,255,0.07);
+    --surface-hover:rgba(255,255,255,0.09);
+    --border:rgba(255,255,255,0.08);
+    --border-strong:rgba(255,255,255,0.14);
+    --text:#e6e8ee;
+    --text-strong:#ffffff;
+    --text-muted:#a4a8b3;
+    --text-faint:#6b7080;
+    --accent:#7c9cff;
+    --accent-2:#c084fc;
+    --accent-3:#34d399;
+    --accent-warn:#fbbf24;
+    --accent-danger:#fb7185;
+    --accent-glow:rgba(124,156,255,0.35);
+    --code-bg:rgba(255,255,255,0.06);
+    --shadow-soft:0 10px 40px -10px rgba(0,0,0,0.6),0 2px 8px -2px rgba(0,0,0,0.4);
+    --shadow-glow:0 0 80px -10px rgba(124,156,255,0.25);
+    --blur:saturate(180%) blur(28px);
+  }
+  [data-theme="light"]{
+    --bg:#f7f7fb;
+    --bg-2:#eef0f6;
+    --bg-grad-1:#dce6ff;
+    --bg-grad-2:#fde2f3;
+    --bg-grad-3:#e0f2ef;
+    --surface:rgba(255,255,255,0.65);
+    --surface-strong:rgba(255,255,255,0.85);
+    --surface-hover:rgba(255,255,255,0.95);
+    --border:rgba(20,20,40,0.08);
+    --border-strong:rgba(20,20,40,0.14);
+    --text:#1a1d24;
+    --text-strong:#000;
+    --text-muted:#525762;
+    --text-faint:#888d99;
+    --accent:#3b62f0;
+    --accent-2:#9333ea;
+    --accent-3:#059669;
+    --accent-warn:#d97706;
+    --accent-danger:#e11d48;
+    --accent-glow:rgba(59,98,240,0.18);
+    --code-bg:rgba(20,20,40,0.06);
+    --shadow-soft:0 10px 40px -10px rgba(20,20,60,0.18),0 2px 8px -2px rgba(20,20,60,0.08);
+    --shadow-glow:0 0 80px -10px rgba(59,98,240,0.18);
+    --blur:saturate(180%) blur(28px);
+  }
+
+  /* ---------- Ambient backdrop ---------- */
+  .backdrop{
+    position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:
+      radial-gradient(60vw 60vw at 12% 8%,var(--bg-grad-1),transparent 60%),
+      radial-gradient(55vw 55vw at 90% 30%,var(--bg-grad-2),transparent 60%),
+      radial-gradient(70vw 70vw at 50% 100%,var(--bg-grad-3),transparent 60%),
+      var(--bg);
+    transition:background .6s ease;
+  }
+  .grain{
+    position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.35;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.06 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode:overlay;
+  }
+  [data-theme="light"] .grain{opacity:.5;mix-blend-mode:multiply}
+
+  /* ---------- Layout ---------- */
+  .container{max-width:920px;margin:0 auto;padding:0 24px}
+  .narrow{max-width:720px}
+
+  /* ---------- Top nav ---------- */
+  nav.top{
+    position:fixed;top:14px;left:50%;transform:translateX(-50%);
+    z-index:50;
+    display:flex;align-items:center;gap:8px;
+    padding:8px 10px 8px 18px;
+    background:var(--surface-strong);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--border);
+    border-radius:999px;
+    box-shadow:var(--shadow-soft);
+    font-size:13px;
+    max-width:calc(100vw - 28px);
+  }
+  nav.top .brand{font-weight:600;color:var(--text-strong);letter-spacing:-.01em;white-space:nowrap}
+  nav.top .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent-glow);margin-right:8px}
+  nav.top .links{display:flex;gap:2px;margin-left:8px}
+  nav.top a{
+    color:var(--text-muted);text-decoration:none;padding:6px 12px;border-radius:999px;
+    transition:color .2s,background .2s;white-space:nowrap;
+  }
+  nav.top a:hover{color:var(--text-strong);background:var(--surface-hover)}
+  nav.top button.theme{
+    margin-left:6px;border:1px solid var(--border);
+    background:var(--surface);color:var(--text);
+    width:32px;height:32px;border-radius:999px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .2s,transform .2s;
+  }
+  nav.top button.theme:hover{background:var(--surface-hover);transform:rotate(-15deg)}
+  nav.top button.theme svg{width:16px;height:16px;color:var(--text-strong)}
+
+  @media (max-width:640px){
+    nav.top .links{display:none}
+  }
+
+  /* ---------- Reading progress ---------- */
+  .progress{
+    position:fixed;top:0;left:0;height:2px;width:0%;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    z-index:60;transition:width .12s linear;
+    box-shadow:0 0 12px var(--accent-glow);
+  }
+
+  /* ---------- Hero ---------- */
+  header.hero{
+    min-height:96vh;display:flex;flex-direction:column;justify-content:center;
+    padding:120px 24px 80px;position:relative;
+  }
+  header.hero .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:6px 14px;border-radius:999px;
+    background:var(--surface-strong);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--border);
+    color:var(--text-muted);font-size:12.5px;font-weight:500;letter-spacing:.02em;
+    margin-bottom:28px;
+    width:fit-content;
+  }
+  header.hero .eyebrow .pulse{
+    width:6px;height:6px;border-radius:50%;background:var(--accent);
+    animation:pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{box-shadow:0 0 0 0 var(--accent-glow);opacity:1}
+    50%{box-shadow:0 0 0 8px transparent;opacity:.6}
+  }
+  header.hero h1{
+    font-size:clamp(40px,7vw,76px);
+    line-height:1.04;letter-spacing:-.035em;
+    font-weight:700;margin:0 0 24px;
+    color:var(--text-strong);
+    background:linear-gradient(180deg,var(--text-strong) 30%,var(--text-muted) 130%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  }
+  header.hero h1 .accent{
+    background:linear-gradient(135deg,var(--accent),var(--accent-2) 60%,var(--accent-3));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  }
+  header.hero p.lede{
+    font-size:clamp(17px,1.8vw,21px);
+    color:var(--text-muted);max-width:640px;
+    margin:0 0 40px;line-height:1.55;
+  }
+  header.hero .meta{
+    display:flex;flex-wrap:wrap;gap:18px;color:var(--text-faint);font-size:13.5px;
+    align-items:center;
+  }
+  header.hero .meta .sep{width:3px;height:3px;border-radius:50%;background:var(--text-faint)}
+  header.hero .scroll-hint{
+    position:absolute;bottom:32px;left:50%;transform:translateX(-50%);
+    color:var(--text-faint);font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    animation:floaty 2.8s ease-in-out infinite;
+  }
+  .scroll-hint svg{width:14px;height:14px}
+  @keyframes floaty{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(6px)}}
+
+  /* ---------- Section ---------- */
+  section{padding:96px 24px;position:relative}
+  section .kicker{
+    display:inline-block;font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:14px;
+  }
+  section h2{
+    font-size:clamp(28px,4.2vw,46px);font-weight:700;letter-spacing:-.025em;line-height:1.1;
+    color:var(--text-strong);margin:0 0 20px;max-width:780px;
+  }
+  section h2 em{font-style:normal;background:linear-gradient(135deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  section .dek{font-size:17px;color:var(--text-muted);max-width:680px;margin:0 0 48px}
+  section h3{font-size:22px;font-weight:650;letter-spacing:-.015em;margin:48px 0 14px;color:var(--text-strong)}
+
+  p{margin:0 0 18px;color:var(--text);font-size:17px;line-height:1.72}
+  p.muted{color:var(--text-muted)}
+  p strong{color:var(--text-strong);font-weight:600}
+  a.inline{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent);transition:border-color .15s,color .15s}
+  a.inline:hover{color:var(--accent-2);border-bottom-color:var(--accent-2)}
+  ul{padding-left:22px;margin:0 0 22px;color:var(--text)}
+  ul li{margin-bottom:10px;font-size:16.5px;line-height:1.7}
+  ul li::marker{color:var(--accent)}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.92em;background:var(--code-bg);padding:2px 7px;border-radius:6px;border:1px solid var(--border)}
+
+  /* ---------- Glass card ---------- */
+  .glass{
+    background:var(--surface);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--border);
+    border-radius:24px;
+    box-shadow:var(--shadow-soft);
+    transition:transform .35s cubic-bezier(.2,.7,.3,1),border-color .25s,background .25s;
+    position:relative;overflow:hidden;
+  }
+  .glass::before{
+    content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:linear-gradient(140deg,rgba(255,255,255,.08) 0%,transparent 35%,transparent 65%,rgba(255,255,255,.04) 100%);
+  }
+  [data-theme="light"] .glass::before{background:linear-gradient(140deg,rgba(255,255,255,.6) 0%,transparent 35%,transparent 65%,rgba(255,255,255,.3) 100%)}
+  .glass:hover{transform:translateY(-3px);border-color:var(--border-strong)}
+
+  /* ---------- Reveal animations ---------- */
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .9s cubic-bezier(.2,.7,.3,1),transform .9s cubic-bezier(.2,.7,.3,1)}
+  .reveal.in{opacity:1;transform:translateY(0)}
+  .stagger > *{opacity:0;transform:translateY(18px);transition:opacity .7s,transform .7s}
+  .stagger.in > *{opacity:1;transform:translateY(0)}
+  .stagger.in > *:nth-child(1){transition-delay:.05s}
+  .stagger.in > *:nth-child(2){transition-delay:.15s}
+  .stagger.in > *:nth-child(3){transition-delay:.25s}
+  .stagger.in > *:nth-child(4){transition-delay:.35s}
+  @media (prefers-reduced-motion:reduce){
+    .reveal,.stagger > *{opacity:1;transform:none;transition:none}
+    .scroll-hint{animation:none}
+    header.hero .eyebrow .pulse{animation:none}
+  }
+
+  /* ---------- Shifts grid ---------- */
+  .shifts{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:24px}
+  @media (max-width:720px){.shifts{grid-template-columns:1fr}}
+  .shift{padding:26px}
+  .shift .num{
+    font-family:"SF Mono",ui-monospace,monospace;font-size:11px;color:var(--text-faint);letter-spacing:.1em;
+    margin-bottom:14px;display:flex;align-items:center;gap:8px;
+  }
+  .shift .num .pip{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  .shift h4{margin:0 0 14px;font-size:18px;letter-spacing:-.01em;color:var(--text-strong);font-weight:600}
+  .shift .arrow{
+    display:flex;align-items:center;gap:10px;margin:14px 0;
+    font-size:13px;color:var(--text-muted);
+  }
+  .shift .from,.shift .to{padding:6px 11px;border-radius:8px;font-family:"SF Mono",ui-monospace,monospace;font-size:12px}
+  .shift .from{background:color-mix(in srgb,var(--accent-danger) 14%,transparent);color:var(--accent-danger);border:1px solid color-mix(in srgb,var(--accent-danger) 25%,transparent)}
+  .shift .to{background:color-mix(in srgb,var(--accent-3) 14%,transparent);color:var(--accent-3);border:1px solid color-mix(in srgb,var(--accent-3) 25%,transparent)}
+  .shift .pma{font-size:14px;color:var(--text-muted);line-height:1.6;border-top:1px solid var(--border);padding-top:14px;margin-top:14px}
+  .shift .pma strong{color:var(--text-strong)}
+
+  /* ---------- Pull quote ---------- */
+  .pullquote{
+    margin:48px auto;max-width:780px;padding:36px 36px 32px;
+    border-left:3px solid var(--accent);
+    background:var(--surface);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border-radius:0 18px 18px 0;
+  }
+  .pullquote p{font-size:22px;line-height:1.45;color:var(--text-strong);font-weight:500;letter-spacing:-.015em;margin-bottom:14px}
+  .pullquote .cite{font-size:13px;color:var(--text-muted)}
+
+  /* ---------- Diagram ---------- */
+  .diagram{
+    margin:32px 0;padding:28px;
+    background:var(--surface);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--border);border-radius:22px;
+    box-shadow:var(--shadow-soft);
+    overflow:hidden;
+  }
+  .diagram svg{width:100%;height:auto;display:block}
+  .diagram .caption{font-size:13px;color:var(--text-muted);text-align:center;margin-top:18px;letter-spacing:.01em}
+
+  /* Agentic loop animation */
+  @keyframes loop-rotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  @keyframes orbit-glow{0%,100%{filter:drop-shadow(0 0 4px var(--accent-glow))}50%{filter:drop-shadow(0 0 14px var(--accent-glow))}}
+  .loop-svg .orbit-ring{transform-origin:center;transform-box:fill-box;animation:loop-rotate 24s linear infinite}
+  .loop-svg .glow{animation:orbit-glow 3s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.loop-svg .orbit-ring,.loop-svg .glow{animation:none}}
+
+  /* ---------- Layer pyramid ---------- */
+  .layers{display:flex;flex-direction:column;gap:8px;margin:28px 0}
+  .layer{
+    padding:22px 26px;border-radius:14px;
+    background:var(--surface);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--border);
+    display:flex;align-items:center;gap:18px;
+    transition:transform .25s,border-color .25s;
+  }
+  .layer:hover{transform:translateX(4px);border-color:var(--border-strong)}
+  .layer .badge{
+    width:42px;height:42px;border-radius:11px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-family:"SF Mono",ui-monospace,monospace;font-size:11px;font-weight:600;
+  }
+  .layer.l1 .badge{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+  .layer.l2 .badge{background:color-mix(in srgb,var(--accent-2) 18%,transparent);color:var(--accent-2);border:1px solid color-mix(in srgb,var(--accent-2) 35%,transparent)}
+  .layer.l3 .badge{background:color-mix(in srgb,var(--accent-3) 18%,transparent);color:var(--accent-3);border:1px solid color-mix(in srgb,var(--accent-3) 35%,transparent)}
+  .layer.l4 .badge{background:color-mix(in srgb,var(--accent-warn) 18%,transparent);color:var(--accent-warn);border:1px solid color-mix(in srgb,var(--accent-warn) 35%,transparent)}
+  .layer .label{font-weight:600;color:var(--text-strong);font-size:15.5px;letter-spacing:-.005em}
+  .layer .desc{font-size:14px;color:var(--text-muted);line-height:1.55}
+  .layer .pulse-cadence{
+    margin-left:auto;font-family:"SF Mono",ui-monospace,monospace;font-size:11px;color:var(--text-faint);
+    padding:4px 10px;border-radius:999px;border:1px solid var(--border);
+    white-space:nowrap;
+  }
+  @media (max-width:640px){.layer{flex-wrap:wrap}.layer .pulse-cadence{margin-left:54px;margin-top:4px}}
+
+  /* ---------- Three pillars ---------- */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:32px}
+  @media (max-width:880px){.pillars{grid-template-columns:1fr}}
+  .pillar{padding:30px 26px;position:relative}
+  .pillar .icon{
+    width:46px;height:46px;border-radius:13px;
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:18px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    box-shadow:0 8px 24px -8px var(--accent-glow);
+  }
+  .pillar:nth-child(2) .icon{background:linear-gradient(135deg,var(--accent-2),var(--accent-3))}
+  .pillar:nth-child(3) .icon{background:linear-gradient(135deg,var(--accent-3),var(--accent))}
+  .pillar .icon svg{width:22px;height:22px;color:#fff}
+  .pillar h4{margin:0 0 12px;font-size:18.5px;color:var(--text-strong);letter-spacing:-.01em;font-weight:600}
+  .pillar p{font-size:15px;color:var(--text-muted);line-height:1.65;margin:0}
+
+  /* ---------- Failure modes ---------- */
+  .failures{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin:28px 0}
+  @media (max-width:720px){.failures{grid-template-columns:1fr}}
+  .failure{padding:18px 22px;display:flex;gap:14px;align-items:flex-start}
+  .failure .dot{
+    flex-shrink:0;width:8px;height:8px;border-radius:50%;background:var(--accent-danger);
+    margin-top:8px;box-shadow:0 0 0 4px color-mix(in srgb,var(--accent-danger) 18%,transparent);
+  }
+  .failure .body{font-size:14.5px;line-height:1.55}
+  .failure .body strong{color:var(--text-strong);display:block;margin-bottom:3px;font-size:15px}
+  .failure .body span{color:var(--text-muted)}
+
+  /* ---------- Learning map ---------- */
+  .learn-row{
+    display:flex;gap:18px;padding:22px 24px;align-items:flex-start;
+    border-bottom:1px solid var(--border);
+  }
+  .learn-row:last-child{border-bottom:none}
+  .learn-row .pri{
+    flex-shrink:0;width:44px;height:24px;border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:"SF Mono",ui-monospace,monospace;font-size:11px;font-weight:600;
+  }
+  .learn-row.p0 .pri{background:color-mix(in srgb,var(--accent-danger) 18%,transparent);color:var(--accent-danger);border:1px solid color-mix(in srgb,var(--accent-danger) 30%,transparent)}
+  .learn-row.p1 .pri{background:color-mix(in srgb,var(--accent-warn) 18%,transparent);color:var(--accent-warn);border:1px solid color-mix(in srgb,var(--accent-warn) 30%,transparent)}
+  .learn-row.p2 .pri{background:color-mix(in srgb,var(--accent-3) 18%,transparent);color:var(--accent-3);border:1px solid color-mix(in srgb,var(--accent-3) 30%,transparent)}
+  .learn-row .body strong{display:block;color:var(--text-strong);font-size:15.5px;margin-bottom:4px;letter-spacing:-.005em}
+  .learn-row .body p{margin:0;font-size:14.5px;color:var(--text-muted);line-height:1.55}
+  .learn-list{
+    background:var(--surface);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--border);border-radius:18px;overflow:hidden;
+  }
+
+  /* ---------- Permission flow ---------- */
+  .perm-row{
+    display:flex;gap:14px;align-items:center;padding:16px 22px;
+    background:var(--surface);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--border);border-radius:14px;
+    margin-bottom:10px;
+  }
+  .perm-row code{font-size:12px;padding:3px 8px}
+  .perm-row .arrow{color:var(--text-faint);font-family:"SF Mono",ui-monospace,monospace}
+  .perm-row .verdict{margin-left:auto;font-size:12.5px;color:var(--text-muted);font-family:"SF Mono",ui-monospace,monospace}
+
+  /* ---------- Footer ---------- */
+  footer{
+    padding:64px 24px 80px;
+    border-top:1px solid var(--border);
+    margin-top:48px;
+  }
+  footer h3{margin-top:0;font-size:13px;text-transform:uppercase;letter-spacing:.18em;color:var(--text-faint);font-weight:600}
+  footer .source-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:36px;margin-top:24px}
+  @media (max-width:680px){footer .source-grid{grid-template-columns:1fr}}
+  footer ul{padding-left:0;list-style:none}
+  footer ul li{margin-bottom:8px;font-size:14px}
+  footer a{color:var(--text-muted);text-decoration:none;border-bottom:1px solid transparent;transition:color .15s,border-color .15s}
+  footer a:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  footer .colophon{margin-top:48px;padding-top:32px;border-top:1px solid var(--border);font-size:13px;color:var(--text-faint);line-height:1.7}
+
+  /* ---------- Section divider ---------- */
+  .divider{
+    width:80px;height:1px;background:linear-gradient(90deg,transparent,var(--border-strong),transparent);
+    margin:0 auto 64px;
+  }
+
+  /* ---------- Support banner (floating, bottom) ----------
+     Matches the page's glass design tokens so it inherits dark/light theme automatically.
+     Hidden by default; revealed via JS after short delay unless dismissed in localStorage. */
+  .support-banner{
+    position:fixed;
+    left:50%;
+    bottom:18px;
+    transform:translate(-50%,140%);            /* offscreen until .show */
+    z-index:55;                                /* above progress bar, below modal-style overlays */
+    display:flex;align-items:center;gap:14px;
+    max-width:calc(100vw - 28px);
+    padding:12px 14px 12px 18px;
+    background:var(--surface-strong);
+    backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+    border:1px solid var(--border-strong);
+    border-radius:999px;
+    box-shadow:var(--shadow-soft),0 0 60px -10px var(--accent-glow);
+    font-size:14px;color:var(--text);
+    opacity:0;pointer-events:none;
+    transition:transform .55s cubic-bezier(.2,.7,.3,1),opacity .4s ease;
+  }
+  .support-banner.show{
+    transform:translate(-50%,0);
+    opacity:1;
+    pointer-events:auto;
+  }
+  .support-banner .star{
+    flex-shrink:0;width:26px;height:26px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(135deg,var(--accent-warn),var(--accent-2));
+    box-shadow:0 4px 14px -4px var(--accent-glow);
+  }
+  .support-banner .star svg{width:14px;height:14px;color:#fff}
+  .support-banner .msg{
+    color:var(--text-strong);
+    line-height:1.4;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .support-banner .msg strong{font-weight:600}
+  .support-banner .cta{
+    flex-shrink:0;
+    display:inline-flex;align-items:center;gap:6px;
+    padding:7px 14px;border-radius:999px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    color:#fff;text-decoration:none;
+    font-size:13px;font-weight:600;letter-spacing:-.005em;
+    border:1px solid color-mix(in srgb,#fff 18%,transparent);
+    transition:transform .2s,box-shadow .2s,filter .2s;
+  }
+  .support-banner .cta:hover{
+    transform:translateY(-1px);
+    box-shadow:0 6px 20px -6px var(--accent-glow);
+    filter:brightness(1.08);
+  }
+  .support-banner .cta svg{width:13px;height:13px}
+  .support-banner .close{
+    flex-shrink:0;
+    width:28px;height:28px;border-radius:50%;
+    background:transparent;border:1px solid var(--border);
+    color:var(--text-muted);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .2s,color .2s,transform .2s,border-color .2s;
+  }
+  .support-banner .close:hover{
+    background:var(--surface-hover);
+    color:var(--text-strong);
+    border-color:var(--border-strong);
+    transform:rotate(90deg);
+  }
+  .support-banner .close svg{width:13px;height:13px}
+
+  /* Mobile: stack the message and shrink to fit; allow wrapping below ~520px */
+  @media (max-width:560px){
+    .support-banner{
+      bottom:10px;
+      gap:10px;
+      padding:10px 10px 10px 14px;
+      border-radius:18px;          /* relax pill shape so wrapped text doesn't look awkward */
+    }
+    .support-banner .msg{
+      white-space:normal;
+      font-size:13px;
+      line-height:1.35;
+    }
+    .support-banner .star{display:none}  /* save space for the message + CTA */
+    .support-banner .cta{padding:6px 11px;font-size:12.5px}
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .support-banner{transition:opacity .2s ease}
+    .support-banner.show{transform:translate(-50%,0)}
+    .support-banner .close:hover{transform:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="backdrop"></div>
+<div class="grain"></div>
+<div class="progress" id="progress"></div>
+
+<nav class="top">
+  <span class="dot"></span>
+  <span class="brand">AI System Design for PMs</span>
+  <span class="links">
+    <a href="#shifts">Shifts</a>
+    <a href="#loop">Loop</a>
+    <a href="#context">Context</a>
+    <a href="#own">What PMs Own</a>
+    <a href="#failures">Failures</a>
+    <a href="#learn">Learn</a>
+  </span>
+  <button class="theme" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">
+    <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+  </button>
+</nav>
+
+<header class="hero">
+  <div class="container narrow">
+    <div class="eyebrow reveal"><span class="pulse"></span> Essay · Research-backed · 2026</div>
+    <h1 class="reveal">AI system design isn't just system design with <span class="accent">LLMs bolted on.</span></h1>
+    <p class="lede reveal">If you believe it is, you're already building it wrong. A field guide to the four shifts, the agentic loop, and the three things AI product managers must own — written for PMs who came up through traditional product work and feel a little behind.</p>
+    <div class="meta reveal">
+      <span>10 min read</span>
+      <span class="sep"></span>
+      <span>Synthesized from 12+ primary sources</span>
+      <span class="sep"></span>
+      <span>Anthropic · LangChain · ArXiv · OpenTelemetry</span>
+    </div>
+  </div>
+  <div class="scroll-hint">
+    <span>Scroll</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+  </div>
+</header>
+
+<!-- Opening -->
+<section>
+  <div class="container narrow reveal">
+    <p>I spent the last few weeks reading every primary source I could find on how production agentic systems actually work — Anthropic's engineering blog, the Claude Code docs, the multi-agent research writeups, ArXiv's recent flood of agent-architecture papers, LangChain's context-engineering post, OpenTelemetry's GenAI conventions, Lilian Weng's failure taxonomy.</p>
+    <p>A pattern keeps showing up that should worry every PM building on top of LLMs.</p>
+    <p>The mental model most teams import from "system design" — request, response, deterministic logic, deploy and forget — quietly breaks when you point it at an agent. Not catastrophically. Subtly. Demos still work. Production still ships. But failures move into a different shape, and the PM who hasn't updated their model is the PM whose product gets surprised in front of users.</p>
+    <p class="muted">Here's what's actually different — and the three things AI PMs need to own that didn't exist on the old job description.</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Four shifts -->
+<section id="shifts">
+  <div class="container">
+    <span class="kicker reveal">Part 01</span>
+    <h2 class="reveal">Four shifts that <em>change everything</em>.</h2>
+    <p class="dek reveal">Every concept further down the page flows from these. They're not engineering nuances — each one moves a decision into the PM's column.</p>
+
+    <div class="shifts stagger">
+      <div class="glass shift">
+        <div class="num"><span class="pip"></span>SHIFT 01 · BEHAVIOR</div>
+        <h4>Deterministic → Probabilistic</h4>
+        <div class="arrow"><span class="from">same in = same out</span> <span>→</span> <span class="to">it depends</span></div>
+        <p class="muted">Same input, same output, was the whole point of testing. With an LLM, temperature, retrieved context, conversation history, even prompt phrasing nudge the output.</p>
+        <div class="pma"><strong>PM action:</strong> design for acceptable unpredictability — confidence thresholds, fallback paths, hard-stop rules.</div>
+      </div>
+
+      <div class="glass shift">
+        <div class="num"><span class="pip"></span>SHIFT 02 · DEPLOYMENT</div>
+        <h4>Ship-and-done → Continuous feedback</h4>
+        <div class="arrow"><span class="from">freeze on deploy</span> <span>→</span> <span class="to">drift over time</span></div>
+        <p class="muted">Models get updated. Retrieval quality degrades as your knowledge base ages. Prompt tweaks rot in ways nobody notices for weeks.</p>
+        <div class="pma"><strong>PM action:</strong> eval pipelines that run on every change, like CI runs on every commit. Block deploys when scores regress.</div>
+      </div>
+
+      <div class="glass shift">
+        <div class="num"><span class="pip"></span>SHIFT 03 · DATA</div>
+        <h4>Queried → Embedded into reasoning</h4>
+        <div class="arrow"><span class="from">data → user</span> <span>→</span> <span class="to">data → cognition</span></div>
+        <p class="muted">Old world: your data pipeline affected what users saw. Agent world: it affects <em>how the system thinks</em>. A retrieved chunk shapes mid-task attention.</p>
+        <div class="pma"><strong>PM action:</strong> own context architecture as a product decision — what does the model need to know, when, and what expires?</div>
+      </div>
+
+      <div class="glass shift">
+        <div class="num"><span class="pip"></span>SHIFT 04 · SAFETY</div>
+        <h4>Input validation → Output guardrails</h4>
+        <div class="arrow"><span class="from">trust the logic</span> <span>→</span> <span class="to">verify the output</span></div>
+        <p class="muted">SQL injection and type checks still matter. But agents can hallucinate, leak PII, or call tools they shouldn't — with completely valid inputs.</p>
+        <div class="pma"><strong>PM action:</strong> embed guardrails on the way out — content filters, tool gates, PII redactors. Governance by design.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- The Loop -->
+<section id="loop">
+  <div class="container">
+    <span class="kicker reveal">Part 02 · The Pattern</span>
+    <h2 class="reveal">The agentic loop: why <em>"stateless"</em> is the wrong mental model.</h2>
+    <p class="dek reveal">Traditional APIs are stateless. Request goes in, response comes out, done. Agents loop.</p>
+  </div>
+
+  <div class="container narrow reveal">
+    <p>The pattern from the ReAct paper (<a class="inline" href="https://arxiv.org/abs/2210.03629" target="_blank" rel="noopener">Yao et al., 2022</a>) — <strong>Thought → Action → Observation, repeat</strong> — is the architectural core of every production agent system worth building on. The model thinks, calls a tool, sees the result, thinks again, calls another tool, eventually decides it's done.</p>
+
+    <div class="diagram reveal">
+      <svg class="loop-svg" viewBox="0 0 600 360" role="img" aria-label="Agentic loop diagram">
+        <defs>
+          <linearGradient id="loopGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity=".9"/>
+            <stop offset="100%" stop-color="var(--accent-2)" stop-opacity=".9"/>
+          </linearGradient>
+          <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3"/>
+          </filter>
+        </defs>
+        <!-- Center -->
+        <circle cx="300" cy="180" r="56" fill="var(--surface-strong)" stroke="var(--border-strong)" stroke-width="1"/>
+        <text x="300" y="174" text-anchor="middle" font-family="SF Mono,monospace" font-size="11" fill="var(--text-muted)" letter-spacing="1.5">CORE</text>
+        <text x="300" y="194" text-anchor="middle" font-size="14" font-weight="600" fill="var(--text-strong)">while loop</text>
+        <!-- Orbit ring with rotating dot -->
+        <g class="orbit-ring">
+          <circle cx="300" cy="180" r="120" fill="none" stroke="url(#loopGrad)" stroke-width="1.2" stroke-dasharray="2 6" opacity=".6"/>
+          <circle class="glow" cx="420" cy="180" r="5" fill="var(--accent)"/>
+        </g>
+        <!-- Three nodes -->
+        <g>
+          <!-- Thought (top) -->
+          <circle cx="300" cy="60" r="36" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text x="300" y="58" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-strong)">Thought</text>
+          <text x="300" y="74" text-anchor="middle" font-size="10" fill="var(--text-muted)">reason</text>
+          <!-- Action (bottom right) -->
+          <circle cx="420" cy="280" r="36" fill="var(--surface)" stroke="var(--accent-2)" stroke-width="1.5"/>
+          <text x="420" y="278" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-strong)">Action</text>
+          <text x="420" y="294" text-anchor="middle" font-size="10" fill="var(--text-muted)">call tool</text>
+          <!-- Observation (bottom left) -->
+          <circle cx="180" cy="280" r="36" fill="var(--surface)" stroke="var(--accent-3)" stroke-width="1.5"/>
+          <text x="180" y="278" text-anchor="middle" font-size="13" font-weight="600" fill="var(--text-strong)">Observe</text>
+          <text x="180" y="294" text-anchor="middle" font-size="10" fill="var(--text-muted)">read result</text>
+        </g>
+        <!-- Arcs between nodes -->
+        <g fill="none" stroke="var(--text-faint)" stroke-width="1" stroke-dasharray="3 4" opacity=".7">
+          <path d="M 332 78 A 130 130 0 0 1 410 246" />
+          <path d="M 388 290 A 130 130 0 0 1 212 290" />
+          <path d="M 190 246 A 130 130 0 0 1 268 78" />
+        </g>
+        <!-- Tripwire halo -->
+        <circle cx="300" cy="180" r="158" fill="none" stroke="var(--accent-warn)" stroke-width="0.8" stroke-dasharray="4 6" opacity=".35"/>
+        <text x="300" y="40" text-anchor="middle" font-family="SF Mono,monospace" font-size="9" fill="var(--accent-warn)" letter-spacing="2">TRIPWIRE: max iter, token budget, wall-clock</text>
+      </svg>
+      <div class="caption">The base loop. Intelligence lives in the layers around it — context, tools, permissions — not in clever orchestration.</div>
+    </div>
+
+    <p>What's striking, when you read the recent Claude Code architecture paper (<a class="inline" href="https://arxiv.org/abs/2604.14228" target="_blank" rel="noopener">arXiv 2604.14228</a>), is how <em>simple</em> this loop is in practice. It's a while-loop. The intelligence lives in the layers around it — the context that gets assembled each turn, the tools that are exposed, the permission rules that gate them — not in clever orchestration logic.</p>
+
+    <p><strong>Good news:</strong> the architecture is comprehensible. It's not a black box.</p>
+    <p><strong>Trap:</strong> a loop with no stop condition will burn your API budget in a single user session. Anthropic's <a class="inline" href="https://www.anthropic.com/research/building-effective-agents" target="_blank" rel="noopener">Building Effective Agents</a> guide is explicit that step counts are unpredictable and cost-latency trade-offs are a design decision — meaning a PM decision.</p>
+
+    <div class="pullquote reveal">
+      <p>If you're not the one defining max-iteration limits, wall-clock timeboxes, and what happens when an agent hits them — then nobody is.</p>
+      <div class="cite">The failure mode shows up as a five-figure bill or a hung task.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Context -->
+<section id="context">
+  <div class="container">
+    <span class="kicker reveal">Part 03 · The Skill Shift</span>
+    <h2 class="reveal">Context <em>is</em> the product.</h2>
+    <p class="dek reveal">Prompt engineering is dead. Context engineering replaced it — and it landed in the PM's lap.</p>
+  </div>
+
+  <div class="container narrow">
+    <p class="reveal">LangChain's July 2025 post on <a class="inline" href="https://www.langchain.com/blog/context-engineering-for-agents" target="_blank" rel="noopener">Context Engineering for Agents</a> names four strategies any production agent has to handle:</p>
+
+    <ul class="reveal">
+      <li><strong>Write</strong> — store context outside the window so it persists across turns.</li>
+      <li><strong>Select</strong> — retrieve just-in-time. (RAG is one mechanism, not the only one.)</li>
+      <li><strong>Compress</strong> — prune. Microsoft Research's <a class="inline" href="https://arxiv.org/abs/2310.05736" target="_blank" rel="noopener">LLMLingua</a> shows up to 20× compression on real prompts.</li>
+      <li><strong>Isolate</strong> — split context across specialized agents so each works with a focused, minimal window.</li>
+    </ul>
+
+    <p class="reveal">Why does this land in the PM's lap? Because you're the one who knows:</p>
+    <ul class="reveal">
+      <li>What the user expects the agent to remember between sessions — and what's a privacy violation if it does.</li>
+      <li>Which knowledge source is freshest, and which is dangerously stale.</li>
+      <li>When to expand context vs. when adding more would <em>degrade</em> the answer (see Liu et al.'s <a class="inline" href="https://arxiv.org/abs/2307.03172" target="_blank" rel="noopener">Lost in the Middle</a> — long contexts produce U-shaped performance, with the middle suffering most).</li>
+    </ul>
+
+    <h3 class="reveal">A diagnostic when an agent misbehaves</h3>
+    <p class="reveal">Ask what <em>layer</em> of context broke. Each is a different bug with a different fix — wrong diagnosis, wrong fix, recurring failure.</p>
+
+    <div class="layers stagger">
+      <div class="layer l1">
+        <div class="badge">01</div>
+        <div>
+          <div class="label">Identity</div>
+          <div class="desc">Persona, system instructions, authority scope. The stable base.</div>
+        </div>
+        <div class="pulse-cadence">rarely changes</div>
+      </div>
+      <div class="layer l2">
+        <div class="badge">02</div>
+        <div>
+          <div class="label">Knowledge</div>
+          <div class="desc">Domain facts retrieved via RAG or injected from tools.</div>
+        </div>
+        <div class="pulse-cadence">occasional</div>
+      </div>
+      <div class="layer l3">
+        <div class="badge">03</div>
+        <div>
+          <div class="label">State</div>
+          <div class="desc">Session memory of what happened earlier in this conversation.</div>
+        </div>
+        <div class="pulse-cadence">per turn</div>
+      </div>
+      <div class="layer l4">
+        <div class="badge">04</div>
+        <div>
+          <div class="label">Task</div>
+          <div class="desc">The immediate instruction for this specific request.</div>
+        </div>
+        <div class="pulse-cadence">per task</div>
+      </div>
+    </div>
+
+    <p class="muted reveal" style="font-size:14.5px;margin-top:20px">A useful PM heuristic — present it as such, not as canon. Industry-standard alternatives include <a class="inline" href="https://www.langchain.com/blog/context-engineering-for-agents" target="_blank" rel="noopener">LangChain's memory taxonomy</a> (short-term, long-term, episodic, semantic).</p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Three things PMs own -->
+<section id="own">
+  <div class="container">
+    <span class="kicker reveal">Part 04 · The Job</span>
+    <h2 class="reveal">The three things AI PMs <em>have to own</em>.</h2>
+    <p class="dek reveal">Bad model choice is recoverable. Bad prompt phrasing is recoverable. The three below are not. Get them wrong and the product fails in production at user cost.</p>
+
+    <div class="pillars stagger">
+      <div class="glass pillar">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4"/><path d="M3 17l9 4 9-4"/></svg></div>
+        <h4>Context Architecture</h4>
+        <p>What does the model know about the user, the task, and the world? When does it know it? What expires? This is product, not infra. The choice to retrieve from a knowledge base vs. inject from a system prompt vs. summarize from past turns is a UX decision. Write it down.</p>
+      </div>
+
+      <div class="glass pillar">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div>
+        <h4>Evaluation Infrastructure</h4>
+        <p>Evals are your unit tests for AI products. Without them, every prompt change is an unmonitored production deploy. Start with the logs you've actually read. Grow it from real failures. Run on every change. Block deploys on regression.</p>
+      </div>
+
+      <div class="glass pillar">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/></svg></div>
+        <h4>Governance Model</h4>
+        <p>What is the agent allowed to <em>do</em>? Not say — do. Read your database? Write to it? Send email? Spend money? If you can't answer "what's the worst this agent can do in one turn?" — you don't have a governance model yet.</p>
+      </div>
+    </div>
+
+    <h3 class="reveal" style="margin-top:64px">A concrete pattern: Claude Code's permission model</h3>
+    <p class="reveal">Three tiers — evaluated in this order, with deny always taking precedence — plus <code>PreToolUse</code> hooks that intercept any call.</p>
+
+    <div class="reveal">
+      <div class="perm-row">
+        <code style="background:color-mix(in srgb,var(--accent-danger) 18%,transparent);color:var(--accent-danger);border-color:color-mix(in srgb,var(--accent-danger) 30%,transparent)">deny</code>
+        <span class="arrow">→</span>
+        <span>match wins, tool blocked</span>
+        <span class="verdict">always wins</span>
+      </div>
+      <div class="perm-row">
+        <code style="background:color-mix(in srgb,var(--accent-warn) 18%,transparent);color:var(--accent-warn);border-color:color-mix(in srgb,var(--accent-warn) 30%,transparent)">ask</code>
+        <span class="arrow">→</span>
+        <span>match wins, prompt the user</span>
+        <span class="verdict">human in loop</span>
+      </div>
+      <div class="perm-row">
+        <code style="background:color-mix(in srgb,var(--accent-3) 18%,transparent);color:var(--accent-3);border-color:color-mix(in srgb,var(--accent-3) 30%,transparent)">allow</code>
+        <span class="arrow">→</span>
+        <span>match wins, tool runs unprompted</span>
+        <span class="verdict">trusted ops</span>
+      </div>
+    </div>
+
+    <p class="reveal" style="margin-top:24px">A practical PM exercise: list every tool your agent can invoke. Classify each one by blast radius — <em>safe</em> (read-only, idempotent), <em>reversible</em> (writes that can be undone), <em>irreversible</em> (sends a message, charges a card, deletes a record). Map approval gates to that classification. IBM's <a class="inline" href="https://www.ibm.com/thought-leadership/agentic-ai-governance-playbook/" target="_blank" rel="noopener">Agentic AI Governance Playbook</a> frames the same idea at enterprise scale: governance moves from review-time to runtime.</p>
+
+    <div class="pullquote reveal">
+      <p>You can hand any of these off to engineering. They will make the call without you. The call will not be wrong, exactly. It just won't reflect what your users need.</p>
+      <div class="cite">Engineers can't read users for you.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Failures -->
+<section id="failures">
+  <div class="container">
+    <span class="kicker reveal">Part 05 · Production</span>
+    <h2 class="reveal">Failures that don't show in <em>demos</em>.</h2>
+    <p class="dek reveal">Demos are easy. Production is where the patterns Lilian Weng <a class="inline" href="https://lilianweng.github.io/posts/2023-06-23-agent/" target="_blank" rel="noopener">catalogued back in 2023</a> keep showing up.</p>
+  </div>
+
+  <div class="container narrow">
+    <div class="failures stagger">
+      <div class="glass failure">
+        <span class="dot"></span>
+        <div class="body">
+          <strong>Infinite loops</strong>
+          <span>Agent calls the same tool repeatedly, never terminates. Common when the stop condition is implicit.</span>
+        </div>
+      </div>
+      <div class="glass failure">
+        <span class="dot"></span>
+        <div class="body">
+          <strong>Context overflow</strong>
+          <span>Conversation history pushes past the window mid-task. Important early instructions get evicted.</span>
+        </div>
+      </div>
+      <div class="glass failure">
+        <span class="dot"></span>
+        <div class="body">
+          <strong>Re-retrieval thrash</strong>
+          <span>Agent keeps fetching the same content with slightly different queries — wasting tokens and time.</span>
+        </div>
+      </div>
+      <div class="glass failure">
+        <span class="dot"></span>
+        <div class="body">
+          <strong>Tool fan-out</strong>
+          <span>Too many parallel calls hit upstream rate limits. Fast in dev, brittle in prod.</span>
+        </div>
+      </div>
+      <div class="glass failure">
+        <span class="dot"></span>
+        <div class="body">
+          <strong>Hallucinated tool calls</strong>
+          <span>Invoking tools that don't exist or passing invalid arguments. Forces a recovery path.</span>
+        </div>
+      </div>
+      <div class="glass failure">
+        <span class="dot"></span>
+        <div class="body">
+          <strong>Lost-in-the-middle</strong>
+          <span>Information stuck mid-context gets ignored. <a class="inline" href="https://arxiv.org/abs/2307.03172" target="_blank" rel="noopener">Liu et al., 2023</a>.</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="reveal">The fix isn't to write smarter prompts. It's to define <strong>tripwires</strong> as product requirements — explicit caps on iterations, tool calls, token budgets, wall-clock time. When a tripwire fires, the agent returns its best partial answer with calibrated uncertainty rather than thrashing harder.</p>
+
+    <p class="muted reveal" style="font-size:15px">The specific numbers depend on the use case. A coding agent might tolerate dozens of tool calls per task; a customer-facing chatbot might cap at three. The right number is the one your PM team has <em>picked and written down</em>, not the default the framework ships with.</p>
+
+    <h3 class="reveal" style="margin-top:48px">Demand a trace, not a log</h3>
+    <p class="reveal">You cannot debug a probabilistic system from print statements. The emerging standard is <a class="inline" href="https://opentelemetry.io/docs/specs/semconv/gen-ai/" target="_blank" rel="noopener">OpenTelemetry's GenAI semantic conventions</a> — span types like <code>invoke_agent</code>, <code>execute_tool</code>, <code>create_agent</code>, with attributes for token usage, tool definitions, conversation IDs.</p>
+
+    <p class="reveal">When a user reports a bad agent response, you trace it through every retrieval, every tool call, every model decision. Failures isolate cleanly to one of four categories:</p>
+
+    <div class="diagram reveal">
+      <svg viewBox="0 0 600 200" role="img" aria-label="Failure isolation diagram">
+        <defs>
+          <linearGradient id="traceGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity=".25"/>
+            <stop offset="50%" stop-color="var(--accent-2)" stop-opacity=".25"/>
+            <stop offset="100%" stop-color="var(--accent-3)" stop-opacity=".25"/>
+          </linearGradient>
+        </defs>
+        <!-- Trace bar -->
+        <rect x="40" y="86" width="520" height="28" rx="14" fill="url(#traceGrad)" stroke="var(--border-strong)"/>
+        <text x="50" y="74" font-family="SF Mono,monospace" font-size="10" fill="var(--text-faint)">USER REQUEST</text>
+        <text x="540" y="74" text-anchor="end" font-family="SF Mono,monospace" font-size="10" fill="var(--text-faint)">RESPONSE</text>
+        <!-- Spans -->
+        <g font-family="SF Mono,monospace" font-size="9.5" fill="var(--text-strong)">
+          <rect x="60" y="92" width="100" height="16" rx="4" fill="var(--surface-strong)" stroke="var(--accent)" stroke-width="1"/>
+          <text x="110" y="103" text-anchor="middle">context</text>
+          <rect x="180" y="92" width="100" height="16" rx="4" fill="var(--surface-strong)" stroke="var(--accent-2)" stroke-width="1"/>
+          <text x="230" y="103" text-anchor="middle">tool def</text>
+          <rect x="300" y="92" width="120" height="16" rx="4" fill="var(--surface-strong)" stroke="var(--accent-3)" stroke-width="1"/>
+          <text x="360" y="103" text-anchor="middle">orchestration</text>
+          <rect x="440" y="92" width="100" height="16" rx="4" fill="var(--surface-strong)" stroke="var(--accent-warn)" stroke-width="1"/>
+          <text x="490" y="103" text-anchor="middle">model</text>
+        </g>
+        <!-- Labels -->
+        <g font-size="11" fill="var(--text-muted)" text-anchor="middle">
+          <text x="110" y="142">1 — context quality</text>
+          <text x="230" y="142">2 — tool definitions</text>
+          <text x="360" y="142">3 — orchestration logic</text>
+          <text x="490" y="142">4 — model behavior</text>
+        </g>
+        <text x="300" y="174" text-anchor="middle" font-size="11" fill="var(--text-faint)">four root causes · four different fixes</text>
+      </svg>
+      <div class="caption">A trace lets you isolate the failure cleanly. Without it, you debug by guessing.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Learning map -->
+<section id="learn">
+  <div class="container">
+    <span class="kicker reveal">Part 06 · Get Up To Speed</span>
+    <h2 class="reveal">Your prioritized <em>learning map</em>.</h2>
+    <p class="dek reveal">If you came up through traditional product work and you're feeling behind, here's what to prioritize. P0 items are non-negotiable — the difference between collaborating with engineering and being a passenger.</p>
+
+    <div class="learn-list reveal">
+      <div class="learn-row p0">
+        <div class="pri">P0</div>
+        <div class="body">
+          <strong>Context Engineering</strong>
+          <p>RAG architectures, token budgeting, the four LangChain strategies, long-context degradation. Start with the <a class="inline" href="https://www.langchain.com/blog/context-engineering-for-agents" target="_blank" rel="noopener">LangChain post</a> and <a class="inline" href="https://arxiv.org/abs/2307.03172" target="_blank" rel="noopener">Lost in the Middle</a>.</p>
+        </div>
+      </div>
+      <div class="learn-row p0">
+        <div class="pri">P0</div>
+        <div class="body">
+          <strong>Agentic Architecture Patterns</strong>
+          <p>Anthropic's canonical five workflow patterns from <a class="inline" href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank" rel="noopener">Building Effective Agents</a>: prompt chaining, routing, parallelization, orchestrator-workers, evaluator-optimizer. The vocabulary your engineers are using.</p>
+        </div>
+      </div>
+      <div class="learn-row p0">
+        <div class="pri">P0</div>
+        <div class="body">
+          <strong>Evaluation Design</strong>
+          <p>Hamel Husain's <a class="inline" href="https://hamel.dev/blog/posts/evals/" target="_blank" rel="noopener">Your AI Product Needs Evals</a> is the best single read. Then learn one platform — Braintrust, LangSmith, or Langfuse — well enough to read its dashboards.</p>
+        </div>
+      </div>
+      <div class="learn-row p1">
+        <div class="pri">P1</div>
+        <div class="body">
+          <strong>Governance &amp; Permissions</strong>
+          <p>Read <a class="inline" href="https://code.claude.com/docs/en/permissions" target="_blank" rel="noopener">Claude Code's permission docs</a> and IBM's <a class="inline" href="https://www.ibm.com/thought-leadership/agentic-ai-governance-playbook/" target="_blank" rel="noopener">Agentic AI Governance Playbook</a>. Map your own product's tools to a risk classification. Show the result to your engineering lead.</p>
+        </div>
+      </div>
+      <div class="learn-row p1">
+        <div class="pri">P1</div>
+        <div class="body">
+          <strong>Observability &amp; Failure Literacy</strong>
+          <p>Skim <a class="inline" href="https://opentelemetry.io/docs/specs/semconv/gen-ai/" target="_blank" rel="noopener">OpenTelemetry GenAI conventions</a> until you can name the standard span types. Read <a class="inline" href="https://lilianweng.github.io/posts/2023-06-23-agent/" target="_blank" rel="noopener">Lilian Weng's failure taxonomy</a>. Ask to see one production trace per week.</p>
+        </div>
+      </div>
+      <div class="learn-row p2">
+        <div class="pri">P2</div>
+        <div class="body">
+          <strong>Multi-Agent Coordination</strong>
+          <p><a class="inline" href="https://www.anthropic.com/engineering/multi-agent-research-system" target="_blank" rel="noopener">Anthropic's multi-agent research writeup</a> is the most concrete public reference. <a class="inline" href="https://arxiv.org/abs/2605.13850" target="_blank" rel="noopener">arXiv 2605.13850</a> extends the pattern set if you want depth.</p>
+        </div>
+      </div>
+      <div class="learn-row p2">
+        <div class="pri">P2</div>
+        <div class="body">
+          <strong>Traditional system design fundamentals</strong>
+          <p>Still foundational. Distributed systems, caching, queues, contracts. AI systems sit on top of these, not instead of them.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Closing -->
+<section>
+  <div class="container narrow">
+    <span class="kicker reveal">Closing</span>
+    <h2 class="reveal">What this all <em>comes down to</em>.</h2>
+
+    <p class="reveal">Most teams shipping AI products today are working with the right model, sensible prompts, and a roughly correct architecture. They still hit the same wall in production, because three things that used to be engineering concerns now live in the PM's column:</p>
+
+    <ul class="reveal">
+      <li><strong>Context architecture</strong> — what the model knows, when, and for how long.</li>
+      <li><strong>Evaluation infrastructure</strong> — how you know it works.</li>
+      <li><strong>Governance</strong> — what the agent is allowed to do, and with what blast radius.</li>
+    </ul>
+
+    <p class="reveal">The PMs who internalize this — who treat context, evals, and governance as product artifacts they own — are the ones whose products don't surprise them in production.</p>
+
+    <div class="pullquote reveal">
+      <p>Which of these is the biggest gap on your team right now?</p>
+      <div class="cite">I'm curious what people are actually working through.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <h3>Sources &amp; further reading</h3>
+    <div class="source-grid">
+      <div>
+        <h3 style="text-transform:none;letter-spacing:-.005em;font-size:13.5px;color:var(--text-strong);margin-top:18px">Anthropic primary</h3>
+        <ul>
+          <li><a href="https://www.anthropic.com/engineering/building-effective-agents" target="_blank" rel="noopener">Building Effective Agents</a></li>
+          <li><a href="https://www.anthropic.com/engineering/multi-agent-research-system" target="_blank" rel="noopener">How we built our multi-agent research system</a></li>
+          <li><a href="https://code.claude.com/docs/en/permissions" target="_blank" rel="noopener">Claude Code permissions</a></li>
+          <li><a href="https://code.claude.com/docs/en/hooks" target="_blank" rel="noopener">Claude Code hooks</a></li>
+          <li><a href="https://platform.claude.com/docs/en/docs/test-and-evaluate/develop-tests" target="_blank" rel="noopener">Anthropic eval guidance</a></li>
+        </ul>
+        <h3 style="text-transform:none;letter-spacing:-.005em;font-size:13.5px;color:var(--text-strong);margin-top:18px">Academic</h3>
+        <ul>
+          <li><a href="https://arxiv.org/abs/2210.03629" target="_blank" rel="noopener">ReAct (arXiv 2210.03629)</a></li>
+          <li><a href="https://arxiv.org/abs/2307.03172" target="_blank" rel="noopener">Lost in the Middle (arXiv 2307.03172)</a></li>
+          <li><a href="https://arxiv.org/abs/2310.05736" target="_blank" rel="noopener">LLMLingua (arXiv 2310.05736)</a></li>
+          <li><a href="https://arxiv.org/abs/2604.14228" target="_blank" rel="noopener">Dive into Claude Code (arXiv 2604.14228)</a></li>
+          <li><a href="https://arxiv.org/abs/2605.13850" target="_blank" rel="noopener">Two-Dimensional Agent Patterns (arXiv 2605.13850)</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="text-transform:none;letter-spacing:-.005em;font-size:13.5px;color:var(--text-strong);margin-top:18px">Practitioner</h3>
+        <ul>
+          <li><a href="https://www.langchain.com/blog/context-engineering-for-agents" target="_blank" rel="noopener">LangChain: Context Engineering for Agents</a></li>
+          <li><a href="https://lilianweng.github.io/posts/2023-06-23-agent/" target="_blank" rel="noopener">Lilian Weng: LLM Powered Autonomous Agents</a></li>
+          <li><a href="https://hamel.dev/blog/posts/evals/" target="_blank" rel="noopener">Hamel Husain: Your AI Product Needs Evals</a></li>
+          <li><a href="https://opentelemetry.io/docs/specs/semconv/gen-ai/" target="_blank" rel="noopener">OpenTelemetry GenAI Semantic Conventions</a></li>
+        </ul>
+        <h3 style="text-transform:none;letter-spacing:-.005em;font-size:13.5px;color:var(--text-strong);margin-top:18px">Governance</h3>
+        <ul>
+          <li><a href="https://www.ibm.com/thought-leadership/agentic-ai-governance-playbook/" target="_blank" rel="noopener">IBM Agentic AI Governance Playbook</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="colophon">
+      Synthesized from primary sources verified June 2026. All claims fact-checked across 8 independent passes — fabricated sources, invented numbers, and misattributed terminology removed before publication. Built as a single self-contained HTML file: no external dependencies, dark/light theme, scroll-aware animations.
+    </div>
+  </div>
+</footer>
+
+<!-- Floating support banner. Hidden by default; JS reveals after 1.2s unless dismissed. -->
+<aside class="support-banner" id="supportBanner" role="complementary" aria-label="Support this project">
+  <span class="star" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+  </span>
+  <span class="msg">Enjoying this? Please leave a <strong>⭐ on GitHub</strong> to support the creator.</span>
+  <a class="cta" href="https://github.com/abdash1994/AI-System-Design-for-PMs" target="_blank" rel="noopener" aria-label="Star the project on GitHub">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1-.02-1.96-3.2.7-3.87-1.54-3.87-1.54-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.69 1.24 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.16 1.18a10.93 10.93 0 0 1 5.76 0c2.2-1.49 3.16-1.18 3.16-1.18.62 1.58.23 2.75.11 3.04.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.06.78 2.15 0 1.55-.01 2.81-.01 3.19 0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+    Star on GitHub
+  </a>
+  <button class="close" id="supportBannerClose" type="button" aria-label="Dismiss banner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+  </button>
+</aside>
+
+<script>
+  // ---------- Support banner ----------
+  // Show after a short delay so it doesn't fight the hero on first paint.
+  // Dismissal is remembered in localStorage so it doesn't pester returning readers.
+  (function(){
+    const banner=document.getElementById('supportBanner');
+    const closeBtn=document.getElementById('supportBannerClose');
+    const KEY='aisd-support-dismissed';
+    let dismissed=false;
+    try{dismissed=localStorage.getItem(KEY)==='1'}catch(e){/* private mode: just show it */}
+    if(!dismissed){
+      // Reveal once the page has settled; respects reduced-motion via CSS.
+      setTimeout(()=>banner.classList.add('show'),1200);
+    }
+    closeBtn.addEventListener('click',()=>{
+      banner.classList.remove('show');
+      try{localStorage.setItem(KEY,'1')}catch(e){}
+    });
+  })();
+
+  // ---------- Theme ----------
+  (function(){
+    const root=document.documentElement;
+    const btn=document.getElementById('themeBtn');
+    const icon=document.getElementById('themeIcon');
+    const SUN='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>';
+    const MOON='<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+    const saved=localStorage.getItem('aisd-theme');
+    const initial=saved||(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');
+    apply(initial);
+    btn.addEventListener('click',()=>{
+      const next=root.dataset.theme==='dark'?'light':'dark';
+      apply(next);
+      try{localStorage.setItem('aisd-theme',next)}catch(e){}
+    });
+    function apply(t){
+      root.dataset.theme=t;
+      icon.innerHTML=t==='dark'?SUN:MOON;
+    }
+  })();
+
+  // ---------- Reading progress ----------
+  (function(){
+    const bar=document.getElementById('progress');
+    let raf=null;
+    function update(){
+      const h=document.documentElement;
+      const max=h.scrollHeight-h.clientHeight;
+      const pct=max>0?(h.scrollTop/max)*100:0;
+      bar.style.width=pct+'%';
+      raf=null;
+    }
+    document.addEventListener('scroll',()=>{
+      if(!raf) raf=requestAnimationFrame(update);
+    },{passive:true});
+    update();
+  })();
+
+  // ---------- Reveal on scroll ----------
+  (function(){
+    const els=document.querySelectorAll('.reveal, .stagger');
+    if(!('IntersectionObserver' in window)){
+      els.forEach(e=>e.classList.add('in'));
+      return;
+    }
+    const io=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{
+        if(e.isIntersecting){
+          e.target.classList.add('in');
+          io.unobserve(e.target);
+        }
+      });
+    },{rootMargin:'0px 0px -60px 0px',threshold:0.1});
+    els.forEach(e=>io.observe(e));
+  })();
+
+  // ---------- Smooth nav active state ----------
+  (function(){
+    const links=document.querySelectorAll('nav.top a[href^="#"]');
+    links.forEach(a=>{
+      a.addEventListener('click',(e)=>{
+        const id=a.getAttribute('href').slice(1);
+        const target=document.getElementById(id);
+        if(target){
+          e.preventDefault();
+          target.scrollIntoView({behavior:'smooth',block:'start'});
+        }
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
